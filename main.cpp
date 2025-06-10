@@ -2,28 +2,41 @@
 #include <chrono>
 #include <vector>
 
+#ifdef _MSC_VER
+    #define NOINLINE __declspec(noinline)
+    #define FORCE_INLINE __forceinline
+#elif defined(__GNUC__) || defined(__clang__)
+    #define NOINLINE __attribute__((noinline))
+    #define FORCE_INLINE __attribute__((always_inline)) inline
+#else
+    #define NOINLINE
+    #define FORCE_INLINE inline
+#endif
+
 constexpr int ARRAY_SIZE = 100000;
 constexpr int ITERATIONS = 100;
 
 // No-inline functions
-__attribute__((noinline)) int multiply_regular(int a, int b) {
+NOINLINE int multiply_regular(int a, int b) {
     return a * b;
 }
 
-__attribute__((noinline)) int complex_calc_regular(int x, int y) {
+NOINLINE int complex_calc_regular(int x, int y) {
     return multiply_regular(x + y, 2) + x + 3;
 }
 
 // Inline functions
-__attribute__((always_inline)) inline int multiply_inline(int a, int b) {
+FORCE_INLINE int multiply_inline(int a, int b) {
     return a * b;
 }
 
-__attribute__((always_inline)) inline int complex_calc_inline(int x, int y) {
+FORCE_INLINE int complex_calc_inline(int x, int y) {
     return multiply_inline(x + y, 2) + x + 3;
 }
 
-double measure_time(std::string name, auto (*func)(const std::vector<int>&), const std::vector<int>& data) {
+// Template function to handle different function signatures across compilers
+template<typename Func>
+double measure_time(const std::string& name, Func func, const std::vector<int>& data) {
     auto start = std::chrono::steady_clock::now();
     volatile long long result = func(data);
     auto end = std::chrono::steady_clock::now();
@@ -59,11 +72,14 @@ int main() {
         data[i] = i % 100 + 1;
     }
     
+    std::cout << "Testing inline vs regular function performance...\n";
+    std::cout << "Array size: " << ARRAY_SIZE << ", Iterations: " << ITERATIONS << "\n\n";
+    
     double regular_time = measure_time("Regular", test_regular, data);
     double inline_time = measure_time("Inline ", test_inline, data);
     
     double improvement = ((regular_time - inline_time) / regular_time) * 100.0;
-    std::cout << "Improvement: " << improvement << "%\n";
+    std::cout << "\nImprovement: " << improvement << "%\n";
     
     return 0;
 }
